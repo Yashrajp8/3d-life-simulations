@@ -35,7 +35,6 @@ jspm_packages/
 
 # Gatsby files
 .cache/
-# public/
 
 # Dependency directories
 bower_components/
