@@ -2,12 +2,12 @@ import React, { useEffect, useRef, useState } from 'react';
 
 const AlgorithmicLife2D = ({ numAtoms, numAtomTypes, colors, rules, speed, ruleType, connectLines, trailEffect, running }) => {
   const canvasRef = useRef(null);
-  const [atoms, setAtoms] = useState([]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
     const context = canvas.getContext('2d');
 
+    let atoms = []
     const resizeCanvas = () => {
       canvas.width = canvas.parentElement.clientWidth;
       canvas.height = canvas.parentElement.clientHeight;
@@ -24,7 +24,7 @@ const AlgorithmicLife2D = ({ numAtoms, numAtomTypes, colors, rules, speed, ruleT
           newAtoms.push(atom(random(), random(), colors[i]));
         }
       }
-      setAtoms(newAtoms);
+      atoms = newAtoms
     };
 
     const rule = (atoms1, atoms2, g) => {
