@@ -252,6 +252,9 @@ const App = () => {
           numAtoms={numAtoms}
           numAtomTypes={numAtomTypes}
           colors={colors}
+          rules={rules}
+          speed={speed}
+          ruleType={ruleType}
           running={running}
         />
       ) : (
