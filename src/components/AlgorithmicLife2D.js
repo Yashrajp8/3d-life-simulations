@@ -86,26 +86,30 @@ const AlgorithmicLife2D = ({ numAtoms, numAtomTypes, colors, rules, speed, ruleT
 
     const update = () => {
       if (!running) return;
-
       if (!trailEffect) {
         context.clearRect(0, 0, canvas.width, canvas.height);
         context.fillStyle = 'black';
         context.fillRect(0, 0, canvas.width, canvas.height);
-      } else {
-        context.fillStyle = 'rgba(0, 0, 0, 0.05)'; // Adjust the alpha value for a smoother trail effect
-        context.fillRect(0, 0, canvas.width, canvas.height);
       }
 
-      rule(atoms, atoms, rules.yellowYellow);
-      rule(atoms, atoms, rules.yellowRed);
-      rule(atoms, atoms, rules.yellowGreen);
-      rule(atoms, atoms, rules.redRed);
-      rule(atoms, atoms, rules.redGreen);
-      rule(atoms, atoms, rules.greenGreen);
+      if (ruleType === 'basic') {
+        rule(atoms, atoms, rules.yellowYellow);
+        rule(atoms, atoms, rules.yellowRed);
+        rule(atoms, atoms, rules.yellowGreen);
+        rule(atoms, atoms, rules.redRed);
+        rule(atoms, atoms, rules.redGreen);
+        rule(atoms, atoms, rules.greenGreen);
+      } else {
+        // Complex rules can include different interaction mechanisms and additional agents
+        rule(atoms, atoms, rules.yellowYellow);
+        rule(atoms, atoms, rules.yellowRed);
+        rule(atoms, atoms, rules.yellowGreen);
+        rule(atoms, atoms, rules.redRed);
+        rule(atoms, atoms, rules.redGreen);
+        rule(atoms, atoms, rules.greenGreen);
+      }
 
       if (connectLines) {
-        context.strokeStyle = 'white';
-        context.lineWidth = 0.5;
         for (let i = 0; i < atoms.length; i++) {
           for (let j = i + 1; j < atoms.length; j++) {
             if (atoms[i].color === atoms[j].color) {

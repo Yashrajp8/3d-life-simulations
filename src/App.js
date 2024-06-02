@@ -11,7 +11,6 @@ const App = () => {
   const [trailEffect, setTrailEffect] = useState(false);
   const [connectLines, setConnectLines] = useState(false);
   const [view3D, setView3D] = useState(false);
-  const [useAR, setUseAR] = useState(false);
   const [colors, setColors] = useState([
     "#FFFF00", // yellow
     "#FF0000", // red
@@ -21,12 +20,12 @@ const App = () => {
     "#00FFFF", // cyan
   ]);
   const [rules, setRules] = useState({
-    rule00: 0.15,
-    rule01: -0.2,
-    rule02: 0.34,
-    rule11: -0.1,
-    rule12: -0.34,
-    rule22: -0.32,
+    yellowYellow: 0.15,
+    yellowRed: -0.2,
+    yellowGreen: 0.34,
+    redRed: -0.1,
+    redGreen: -0.34,
+    greenGreen: -0.32,
   });
   const [ruleType, setRuleType] = useState('basic');
 
@@ -69,7 +68,7 @@ const App = () => {
   const handleRandomizeRules = () => {
     const randomRules = {};
     Object.keys(rules).forEach(rule => {
-      randomRules[rule] = Math.random() * 2 - 1;
+      randomRules[rule] = Math.random() * 2 - 1; // Random value between -1 and 1
     });
     setRules(randomRules);
   };
@@ -84,13 +83,7 @@ const App = () => {
 
   const handleView3DToggle = () => {
     setView3D(prev => !prev);
-    handleRestart();
-  };
-
-  const handleARToggle = () => {
-    setUseAR(prev => !prev);
-    setView3D(true); // Switch to 3D view for AR mode
-    handleRestart();
+    handleRestart(); // Restart the simulation to reinitialize atoms
   };
 
   return (
@@ -178,25 +171,17 @@ const App = () => {
               onChange={handleView3DToggle}
             />
           </label>
-          <label>
-            AR Mode:
-            <input
-              type="checkbox"
-              checked={useAR}
-              onChange={handleARToggle}
-            />
-          </label>
         </div>
         <div className="rule-section">
           <label>
             Yellow-Yellow Interaction:
             <input
               type="range"
-              name="rule00"
+              name="yellowYellow"
               min="-1"
               max="1"
               step="0.01"
-              value={rules.rule00}
+              value={rules.yellowYellow}
               onChange={handleRuleChange}
             />
           </label>
@@ -204,11 +189,11 @@ const App = () => {
             Yellow-Red Interaction:
             <input
               type="range"
-              name="rule01"
+              name="yellowRed"
               min="-1"
               max="1"
               step="0.01"
-              value={rules.rule01}
+              value={rules.yellowRed}
               onChange={handleRuleChange}
             />
           </label>
@@ -216,11 +201,11 @@ const App = () => {
             Yellow-Green Interaction:
             <input
               type="range"
-              name="rule02"
+              name="yellowGreen"
               min="-1"
               max="1"
               step="0.01"
-              value={rules.rule02}
+              value={rules.yellowGreen}
               onChange={handleRuleChange}
             />
           </label>
@@ -228,11 +213,11 @@ const App = () => {
             Red-Red Interaction:
             <input
               type="range"
-              name="rule11"
+              name="redRed"
               min="-1"
               max="1"
               step="0.01"
-              value={rules.rule11}
+              value={rules.redRed}
               onChange={handleRuleChange}
             />
           </label>
@@ -240,11 +225,11 @@ const App = () => {
             Red-Green Interaction:
             <input
               type="range"
-              name="rule12"
+              name="redGreen"
               min="-1"
               max="1"
               step="0.01"
-              value={rules.rule12}
+              value={rules.redGreen}
               onChange={handleRuleChange}
             />
           </label>
@@ -252,43 +237,36 @@ const App = () => {
             Green-Green Interaction:
             <input
               type="range"
-              name="rule22"
+              name="greenGreen"
               min="-1"
               max="1"
               step="0.01"
-              value={rules.rule22}
+              value={rules.greenGreen}
               onChange={handleRuleChange}
             />
           </label>
         </div>
       </div>
-      <div className="simulation-container">
-        {view3D ? (
-          <AlgorithmicLife3D
-            numAtoms={numAtoms}
-            numAtomTypes={numAtomTypes}
-            colors={colors}
-            running={running}
-            rules={rules}
-            ruleType={ruleType}
-            trailEffect={trailEffect}
-            connectLines={connectLines}
-            useAR={useAR}
-          />
-        ) : (
-          <AlgorithmicLife2D
-            numAtoms={numAtoms}
-            numAtomTypes={numAtomTypes}
-            colors={colors}
-            rules={rules}
-            speed={speed}
-            ruleType={ruleType}
-            connectLines={connectLines}
-            trailEffect={trailEffect}
-            running={running}
-          />
-        )}
-      </div>
+      {view3D ? (
+        <AlgorithmicLife3D
+          numAtoms={numAtoms}
+          numAtomTypes={numAtomTypes}
+          colors={colors}
+          running={running}
+        />
+      ) : (
+        <AlgorithmicLife2D
+          numAtoms={numAtoms}
+          numAtomTypes={numAtomTypes}
+          colors={colors}
+          rules={rules}
+          speed={speed}
+          ruleType={ruleType}
+          connectLines={connectLines}
+          trailEffect={trailEffect}
+          running={running}
+        />
+      )}
     </div>
   );
 };
