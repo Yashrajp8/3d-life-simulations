@@ -1,13 +1,13 @@
 import React, { useEffect, useRef, useState } from 'react';
 
-const AlgorithmicLife2D = ({ numAtoms, numAtomTypes, colors, rules, speed, ruleType, connectLines, trailEffect, running }) => {
+const AlgorithmicLife2D = ({ numAtoms, numAtomTypes, colors, rules, speed, ruleType, connectLines, trailEffect, running, viscosity }) => {
   const canvasRef = useRef(null);
+  const [atoms, setAtoms] = useState([]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
     const context = canvas.getContext('2d');
 
-    let atoms = []
     const resizeCanvas = () => {
       canvas.width = canvas.parentElement.clientWidth;
       canvas.height = canvas.parentElement.clientHeight;
@@ -17,17 +17,29 @@ const AlgorithmicLife2D = ({ numAtoms, numAtomTypes, colors, rules, speed, ruleT
 
     const initializeAtoms = () => {
       const newAtoms = [];
-      const atom = (x, y, c) => ({ x, y, vx: 0, vy: 0, color: c });
-      const random = () => Math.random() * canvas.width;
+      const atom = (x, y, vx, vy, c) => ({
+        x,
+        y,
+        vx,
+        vy,
+        ax: 0,
+        ay: 0,
+        color: c,
+      });
+      const random = (max) => Math.random() * max;
+      const atomsPerType = Math.floor(numAtoms / numAtomTypes);
+
       for (let i = 0; i < numAtomTypes; i++) {
-        for (let j = 0; j < numAtoms / numAtomTypes; j++) {
-          newAtoms.push(atom(random(), random(), colors[i]));
+        for (let j = 0; j < atomsPerType; j++) {
+          newAtoms.push(atom(random(canvas.width), random(canvas.height), (Math.random() - 0.5) * 2, (Math.random() - 0.5) * 2, colors[i]));
         }
       }
-      atoms = newAtoms
+      setAtoms(newAtoms);
     };
 
-    const rule = (atoms1, atoms2, g) => {
+    const applyRules = (atoms1, atoms2, ruleKey, sameType) => {
+      const rule = rules[ruleKey];
+      const accelerationFactor = sameType ? 2 : 1;
       for (let i = 0; i < atoms1.length; i++) {
         let fx = 0;
         let fy = 0;
@@ -38,14 +50,18 @@ const AlgorithmicLife2D = ({ numAtoms, numAtomTypes, colors, rules, speed, ruleT
           const dy = a.y - b.y;
           const d = Math.sqrt(dx * dx + dy * dy);
           if (d > 0 && d < 80) {
-            const F = (g * 1) / d;
+            const attraction = (rule.attraction * accelerationFactor) / d;
+            const repulsion = (rule.repulsion * accelerationFactor) / (d * d);
+            const F = attraction - repulsion;
             fx += F * dx;
             fy += F * dy;
           }
         }
         const a = atoms1[i];
-        a.vx = (a.vx + fx) * 0.5;
-        a.vy = (a.vy + fy) * 0.5;
+        a.ax = fx * (1 - viscosity);
+        a.ay = fy * (1 - viscosity);
+        a.vx = (a.vx + a.ax) * 0.5;
+        a.vy = (a.vy + a.ay) * 0.5;
         a.x += a.vx * speed;
         a.y += a.vy * speed;
         if (a.x <= 0 || a.x >= canvas.width) a.vx *= -1;
@@ -53,10 +69,10 @@ const AlgorithmicLife2D = ({ numAtoms, numAtomTypes, colors, rules, speed, ruleT
       }
     };
 
-    const draw = (x, y, c, s) => {
-      context.fillStyle = c;
+    const draw = (x, y, c, s, alpha = 1) => {
+      context.fillStyle = `rgba(${parseInt(c.slice(1, 3), 16)}, ${parseInt(c.slice(3, 5), 16)}, ${parseInt(c.slice(5, 7), 16)}, ${alpha})`;
       context.beginPath();
-      context.arc(x, y, s / 2, 0, 2 * Math.PI);
+      context.arc(x, y, s / 4, 0, 2 * Math.PI); // Smaller atom size
       context.fill();
     };
 
@@ -68,7 +84,7 @@ const AlgorithmicLife2D = ({ numAtoms, numAtomTypes, colors, rules, speed, ruleT
           const dx = a.x - b.x;
           const dy = a.y - b.y;
           const distance = Math.sqrt(dx * dx + dy * dy);
-          if (distance < 5) { // collision detected
+          if (distance < 2.5) { // collision detected, adjusted for smaller atoms
             const totalMass = 1; // assuming equal mass
             const v1 = { x: a.vx, y: a.vy };
             const v2 = { x: b.vx, y: b.vy };
@@ -82,31 +98,21 @@ const AlgorithmicLife2D = ({ numAtoms, numAtomTypes, colors, rules, speed, ruleT
       }
     };
 
-    initializeAtoms();
-
     const update = () => {
       if (!running) return;
+
       if (!trailEffect) {
         context.clearRect(0, 0, canvas.width, canvas.height);
         context.fillStyle = 'black';
         context.fillRect(0, 0, canvas.width, canvas.height);
       }
 
-      if (ruleType === 'basic') {
-        rule(atoms, atoms, rules.yellowYellow);
-        rule(atoms, atoms, rules.yellowRed);
-        rule(atoms, atoms, rules.yellowGreen);
-        rule(atoms, atoms, rules.redRed);
-        rule(atoms, atoms, rules.redGreen);
-        rule(atoms, atoms, rules.greenGreen);
-      } else {
-        // Complex rules can include different interaction mechanisms and additional agents
-        rule(atoms, atoms, rules.yellowYellow);
-        rule(atoms, atoms, rules.yellowRed);
-        rule(atoms, atoms, rules.yellowGreen);
-        rule(atoms, atoms, rules.redRed);
-        rule(atoms, atoms, rules.redGreen);
-        rule(atoms, atoms, rules.greenGreen);
+      for (let i = 0; i < numAtomTypes; i++) {
+        for (let j = 0; j < numAtomTypes; j++) {
+          const ruleKey = `${colors[i]}-${colors[j]}`;
+          const sameType = i === j;
+          applyRules(atoms.filter(a => a.color === colors[i]), atoms.filter(a => a.color === colors[j]), ruleKey, sameType);
+        }
       }
 
       if (connectLines) {
@@ -126,7 +132,7 @@ const AlgorithmicLife2D = ({ numAtoms, numAtomTypes, colors, rules, speed, ruleT
       detectCollisions();
 
       for (let i = 0; i < atoms.length; i++) {
-        draw(atoms[i].x, atoms[i].y, atoms[i].color, 5);
+        draw(atoms[i].x, atoms[i].y, atoms[i].color, 5, trailEffect ? 0.6 : 1);
       }
 
       requestAnimationFrame(update);
@@ -134,12 +140,13 @@ const AlgorithmicLife2D = ({ numAtoms, numAtomTypes, colors, rules, speed, ruleT
 
     resizeCanvas();
     window.addEventListener('resize', resizeCanvas);
+    initializeAtoms();
     update();
 
     return () => {
       window.removeEventListener('resize', resizeCanvas);
     };
-  }, [numAtoms, numAtomTypes, colors, rules, speed, ruleType, connectLines, trailEffect, running]);
+  }, [numAtoms, numAtomTypes, colors, rules, speed, ruleType, connectLines, trailEffect, running, viscosity]);
 
   return <canvas ref={canvasRef} className="simulation-canvas" />;
 };

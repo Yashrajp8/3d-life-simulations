@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
 
-const AlgorithmicLife3D = ({ numAtoms, numAtomTypes, colors, rules, speed, ruleType, running }) => {
+const AlgorithmicLife3D = ({ numAtoms, numAtomTypes, colors, rules, speed, ruleType, running, viscosity }) => {
   const canvasRef = useRef(null);
   const [particles, setParticles] = useState([]);
 
@@ -10,7 +10,8 @@ const AlgorithmicLife3D = ({ numAtoms, numAtomTypes, colors, rules, speed, ruleT
     const canvas = canvasRef.current;
 
     // 3D View initialization
-    let renderer, scene, camera, controls, particles = [];
+    let renderer, scene, camera, controls;
+    const particles = [];
 
     try {
       renderer = new THREE.WebGLRenderer({ canvas });
@@ -23,30 +24,36 @@ const AlgorithmicLife3D = ({ numAtoms, numAtomTypes, colors, rules, speed, ruleT
 
     scene = new THREE.Scene();
     camera = new THREE.PerspectiveCamera(75, canvas.clientWidth / canvas.clientHeight, 0.1, 1000);
-    camera.position.z = 5;
+    camera.position.set(10, 10, 10); // Zoomed out isometric view
+    camera.lookAt(new THREE.Vector3(0, 0, 0));
 
     controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
     controls.dampingFactor = 0.25;
     controls.enableZoom = true;
 
-    const geometry = new THREE.SphereGeometry(0.1, 32, 32);
+    const geometry = new THREE.SphereGeometry(0.05, 32, 32); // Smaller atom size
     const materials = colors.map(color => new THREE.MeshBasicMaterial({ color }));
+    const atomsPerType = Math.floor(numAtoms / numAtomTypes);
 
-    for (let i = 0; i < numAtoms; i++) {
-      const material = materials[i % numAtomTypes];
-      const particle = new THREE.Mesh(geometry, material);
-      particle.position.set((Math.random() - 0.5) * 10, (Math.random() - 0.5) * 10, (Math.random() - 0.5) * 10);
-      particle.velocity = new THREE.Vector3(
-        (Math.random() - 0.5) * 0.1,
-        (Math.random() - 0.5) * 0.1,
-        (Math.random() - 0.5) * 0.1
-      );
-      particles.push(particle);
-      scene.add(particle);
+    for (let i = 0; i < numAtomTypes; i++) {
+      for (let j = 0; j < atomsPerType; j++) {
+        const material = materials[i];
+        const particle = new THREE.Mesh(geometry, material);
+        particle.position.set((Math.random() - 0.5) * 10, (Math.random() - 0.5) * 10, (Math.random() - 0.5) * 10);
+        particle.velocity = new THREE.Vector3(
+          (Math.random() - 0.5) * 0.1,
+          (Math.random() - 0.5) * 0.1,
+          (Math.random() - 0.5) * 0.1
+        );
+        particle.acceleration = new THREE.Vector3(0, 0, 0);
+        particles.push(particle);
+        scene.add(particle);
+      }
     }
 
-    const rule = (particles1, particles2, g) => {
+    const applyRules = (particles1, particles2, ruleKey, sameType) => {
+      const rule = rules[ruleKey];
       for (let i = 0; i < particles1.length; i++) {
         let fx = 0;
         let fy = 0;
@@ -54,48 +61,38 @@ const AlgorithmicLife3D = ({ numAtoms, numAtomTypes, colors, rules, speed, ruleT
         for (let j = 0; j < particles2.length; j++) {
           const a = particles1[i];
           const b = particles2[j];
-          const dx = a.position.x - b.position.x;
-          const dy = a.position.y - b.position.y;
-          const dz = a.position.z - b.position.z;
-          const d = Math.sqrt(dx * dx + dy * dy + dz * dz);
-          if (d > 0 && d < 80) {
-            const F = (g * 1) / d;
-            fx += F * dx;
-            fy += F * dy;
-            fz += F * dz;
+          const dx = a.position.x - b.position.x; // Directional component in x-axis
+          const dy = a.position.y - b.position.y; // Directional component in y-axis
+          const dz = a.position.z - b.position.z; // Directional component in z-axis
+          const d = Math.sqrt(dx * dx + dy * dy + dz * dz); // Distance between atoms
+          if (d > 0 && d < 80) { // Apply forces only if atoms are within a certain distance
+            const attraction = rule.attraction / d;
+            const repulsion = sameType ? 0 : rule.repulsion / (d * d);
+            const F = attraction - repulsion; // Net force
+            fx += F * dx; // Force component in x-axis
+            fy += F * dy; // Force component in y-axis
+            fz += F * dz; // Force component in z-axis
           }
         }
-        particles1[i].velocity.x = (particles1[i].velocity.x + fx) * 0.5;
-        particles1[i].velocity.y = (particles1[i].velocity.y + fy) * 0.5;
-        particles1[i].velocity.z = (particles1[i].velocity.z + fz) * 0.5;
+        particles1[i].acceleration.set(fx * (1 - viscosity), fy * (1 - viscosity), fz * (1 - viscosity)); // Apply acceleration in 3D
+        particles1[i].velocity.add(particles1[i].acceleration).multiplyScalar(0.5); // Update velocity in 3D
       }
     };
 
-    const animate = () => {
+    const update = () => {
       if (!running) return;
 
-      if (ruleType === 'basic') {
-        rule(particles, particles, rules.yellowYellow);
-        rule(particles, particles, rules.yellowRed);
-        rule(particles, particles, rules.yellowGreen);
-        rule(particles, particles, rules.redRed);
-        rule(particles, particles, rules.redGreen);
-        rule(particles, particles, rules.greenGreen);
-      } else {
-        // Complex rules can include different interaction mechanisms and additional agents
-        rule(particles, particles, rules.yellowYellow);
-        rule(particles, particles, rules.yellowRed);
-        rule(particles, particles, rules.yellowGreen);
-        rule(particles, particles, rules.redRed);
-        rule(particles, particles, rules.redGreen);
-        rule(particles, particles, rules.greenGreen);
+      for (let i = 0; i < numAtomTypes; i++) {
+        for (let j = 0; j < numAtomTypes; j++) {
+          const ruleKey = `${colors[i]}-${colors[j]}`;
+          const sameType = i === j;
+          applyRules(particles.filter(p => p.material.color.getStyle() === colors[i]), particles.filter(p => p.material.color.getStyle() === colors[j]), ruleKey, sameType);
+        }
       }
 
       particles.forEach(p => {
         // Basic movement logic for particles
-        p.position.x += p.velocity.x * speed;
-        p.position.y += p.velocity.y * speed;
-        p.position.z += p.velocity.z * speed;
+        p.position.add(p.velocity.clone().multiplyScalar(speed));
 
         // Boundary conditions
         if (p.position.x < -5 || p.position.x > 5) p.velocity.x *= -1;
@@ -105,10 +102,10 @@ const AlgorithmicLife3D = ({ numAtoms, numAtomTypes, colors, rules, speed, ruleT
 
       controls.update();
       renderer.render(scene, camera);
-      requestAnimationFrame(animate);
+      requestAnimationFrame(update);
     };
 
-    animate();
+    update();
 
     const handleResize = () => {
       renderer.setSize(canvas.clientWidth, canvas.clientHeight);
@@ -124,7 +121,7 @@ const AlgorithmicLife3D = ({ numAtoms, numAtomTypes, colors, rules, speed, ruleT
       scene.clear();
       window.removeEventListener('resize', handleResize);
     };
-  }, [numAtoms, numAtomTypes, colors, rules, speed, ruleType, running]);
+  }, [numAtoms, numAtomTypes, colors, rules, speed, ruleType, running, viscosity]);
 
   return <canvas ref={canvasRef} className="simulation-canvas" />;
 };

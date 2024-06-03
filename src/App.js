@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useAudio } from 'react-use';
 import AlgorithmicLife2D from './components/AlgorithmicLife2D';
 import AlgorithmicLife3D from './components/AlgorithmicLife3D';
 import './components/AlgorithmicLife.css';
@@ -6,11 +7,12 @@ import './components/AlgorithmicLife.css';
 const App = () => {
   const [running, setRunning] = useState(true);
   const [speed, setSpeed] = useState(1);
-  const [numAtoms, setNumAtoms] = useState(200);
+  const [numAtomsPerType, setNumAtomsPerType] = useState(100);
   const [numAtomTypes, setNumAtomTypes] = useState(3);
-  const [trailEffect, setTrailEffect] = useState(false);
+  const [trailEffect, setTrailEffect] = useState(true); // Turned on by default
   const [connectLines, setConnectLines] = useState(false);
   const [view3D, setView3D] = useState(false);
+  const [viscosity, setViscosity] = useState(Math.random() * 0.2); // Random viscosity between 0 and 0.2
   const [colors, setColors] = useState([
     "#FFFF00", // yellow
     "#FF0000", // red
@@ -19,18 +21,34 @@ const App = () => {
     "#FF00FF", // magenta
     "#00FFFF", // cyan
   ]);
-  const [rules, setRules] = useState({
-    yellowYellow: 0.15,
-    yellowRed: -0.2,
-    yellowGreen: 0.34,
-    redRed: -0.1,
-    redGreen: -0.34,
-    greenGreen: -0.32,
-  });
+  const [rules, setRules] = useState({});
   const [ruleType, setRuleType] = useState('basic');
+  const [audioEnabled, setAudioEnabled] = useState(false);
+
+  const [audio, state, controls] = useAudio({
+    autoPlay: true
+  });
+
+  useEffect(() => {
+    const generateRules = () => {
+      const newRules = {};
+      for (let i = 0; i < numAtomTypes; i++) {
+        for (let j = 0; j < numAtomTypes; j++) {
+          newRules[`${colors[i]}-${colors[j]}`] = {
+            attraction: Math.random() * 2 - 1, // Random value between -1 and 1 for attraction
+            repulsion: Math.random() * 2 - 1, // Random value between -1 and 1 for repulsion
+          };
+        }
+      }
+      setRules(newRules);
+    };
+
+    generateRules();
+  }, [numAtomTypes, colors]);
 
   const handleRestart = () => {
     setRunning(false);
+    setViscosity(Math.random() * 0.2); // Set random viscosity between 0 and 0.2 on restart
     setTimeout(() => setRunning(true), 100);
   };
 
@@ -42,8 +60,8 @@ const App = () => {
     setSpeed(event.target.value);
   };
 
-  const handleNumAtomsChange = (event) => {
-    setNumAtoms(event.target.value);
+  const handleNumAtomsPerTypeChange = (event) => {
+    setNumAtomsPerType(event.target.value);
   };
 
   const handleNumAtomTypesChange = (event) => {
@@ -58,7 +76,14 @@ const App = () => {
 
   const handleRuleChange = (event) => {
     const { name, value } = event.target;
-    setRules(prevRules => ({ ...prevRules, [name]: parseFloat(value) }));
+    const [type, forceType] = name.split('-');
+    setRules(prevRules => ({
+      ...prevRules,
+      [type]: {
+        ...prevRules[type],
+        [forceType]: parseFloat(value),
+      },
+    }));
   };
 
   const handleRuleTypeChange = (event) => {
@@ -67,9 +92,14 @@ const App = () => {
 
   const handleRandomizeRules = () => {
     const randomRules = {};
-    Object.keys(rules).forEach(rule => {
-      randomRules[rule] = Math.random() * 2 - 1; // Random value between -1 and 1
-    });
+    for (let i = 0; i < numAtomTypes; i++) {
+      for (let j = 0; j < numAtomTypes; j++) {
+        randomRules[`${colors[i]}-${colors[j]}`] = {
+          attraction: Math.random() * 2 - 1, // Random value between -1 and 1 for attraction
+          repulsion: Math.random() * 2 - 1, // Random value between -1 and 1 for repulsion
+        };
+      }
+    }
     setRules(randomRules);
   };
 
@@ -84,6 +114,10 @@ const App = () => {
   const handleView3DToggle = () => {
     setView3D(prev => !prev);
     handleRestart(); // Restart the simulation to reinitialize atoms
+  };
+
+  const handleAudioToggle = () => {
+    setAudioEnabled(prev => !prev);
   };
 
   return (
@@ -111,13 +145,13 @@ const App = () => {
             />
           </label>
           <label>
-            Number of Atoms:
+            Number of Atoms for Each Type:
             <input
               type="number"
               min="50"
               max="500"
-              value={numAtoms}
-              onChange={handleNumAtomsChange}
+              value={numAtomsPerType}
+              onChange={handleNumAtomsPerTypeChange}
             />
           </label>
           <label>
@@ -171,95 +205,61 @@ const App = () => {
               onChange={handleView3DToggle}
             />
           </label>
+          <label>
+            React to Audio:
+            <input
+              type="checkbox"
+              checked={audioEnabled}
+              onChange={handleAudioToggle}
+            />
+          </label>
         </div>
         <div className="rule-section">
-          <label>
-            Yellow-Yellow Interaction:
-            <input
-              type="range"
-              name="yellowYellow"
-              min="-1"
-              max="1"
-              step="0.01"
-              value={rules.yellowYellow}
-              onChange={handleRuleChange}
-            />
-          </label>
-          <label>
-            Yellow-Red Interaction:
-            <input
-              type="range"
-              name="yellowRed"
-              min="-1"
-              max="1"
-              step="0.01"
-              value={rules.yellowRed}
-              onChange={handleRuleChange}
-            />
-          </label>
-          <label>
-            Yellow-Green Interaction:
-            <input
-              type="range"
-              name="yellowGreen"
-              min="-1"
-              max="1"
-              step="0.01"
-              value={rules.yellowGreen}
-              onChange={handleRuleChange}
-            />
-          </label>
-          <label>
-            Red-Red Interaction:
-            <input
-              type="range"
-              name="redRed"
-              min="-1"
-              max="1"
-              step="0.01"
-              value={rules.redRed}
-              onChange={handleRuleChange}
-            />
-          </label>
-          <label>
-            Red-Green Interaction:
-            <input
-              type="range"
-              name="redGreen"
-              min="-1"
-              max="1"
-              step="0.01"
-              value={rules.redGreen}
-              onChange={handleRuleChange}
-            />
-          </label>
-          <label>
-            Green-Green Interaction:
-            <input
-              type="range"
-              name="greenGreen"
-              min="-1"
-              max="1"
-              step="0.01"
-              value={rules.greenGreen}
-              onChange={handleRuleChange}
-            />
-          </label>
+          {Object.keys(rules).map(rule => (
+            <div key={rule}>
+              <label>
+                {rule.replace(/#/g, '')} Attraction:
+                <input
+                  type="range"
+                  name={`${rule}-attraction`}
+                  min="-1"
+                  max="1"
+                  step="0.01"
+                  value={rules[rule].attraction}
+                  onChange={handleRuleChange}
+                />
+              </label>
+              <label>
+                {rule.replace(/#/g, '')} Repulsion:
+                <input
+                  type="range"
+                  name={`${rule}-repulsion`}
+                  min="-1"
+                  max="1"
+                  step="0.01"
+                  value={rules[rule].repulsion}
+                  onChange={handleRuleChange}
+                />
+              </label>
+            </div>
+          ))}
         </div>
       </div>
       {view3D ? (
         <AlgorithmicLife3D
-          numAtoms={numAtoms}
+          numAtoms={numAtomsPerType * numAtomTypes}
           numAtomTypes={numAtomTypes}
           colors={colors}
           rules={rules}
           speed={speed}
           ruleType={ruleType}
           running={running}
+          viscosity={viscosity} // Pass viscosity to 3D simulation
+          audioEnabled={audioEnabled}
         />
       ) : (
         <AlgorithmicLife2D
-          numAtoms={numAtoms}
+          numAtoms={numAtomsPerType * numAtomTypes}
           numAtomTypes={numAtomTypes}
           colors={colors}
           rules={rules}
@@ -268,8 +268,11 @@ const App = () => {
           connectLines={connectLines}
           trailEffect={trailEffect}
           running={running}
+          viscosity={viscosity} // Pass viscosity to 2D simulation
+          audioEnabled={audioEnabled}
         />
       )}
+      {audio}
     </div>
   );
 };
