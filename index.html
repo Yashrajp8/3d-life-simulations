@@ -29,27 +29,16 @@
       renderer="logarithmicDepthBuffer: true;"
     >
       <a-marker type="pattern" url="https://raw.githubusercontent.com/AR-js-org/AR.js/master/aframe/examples/marker-training/examples/pattern-files/pattern-kanji.patt">
-        <a-entity
-          id="simulation"
-          position="0 0 0"
-          scale="1 1 1"
-          material="opacity: 0.8;"
-        ></a-entity>
+        <a-plane position="0 0 0" width="1" height="1" material="shader: flat; side: double;">
+          <canvas id="simulationCanvas" width="512" height="512"></canvas>
+        </a-plane>
       </a-marker>
       <a-entity camera></a-entity>
     </a-scene>
 
     <script>
-      // The simulation code
       document.addEventListener('DOMContentLoaded', () => {
-        const simulationEntity = document.querySelector('#simulation');
-
-        // Initialize the 2D canvas inside the marker
-        const canvas = document.createElement('canvas');
-        canvas.width = 512;
-        canvas.height = 512;
-        simulationEntity.appendChild(canvas);
-
+        const canvas = document.getElementById('simulationCanvas');
         const context = canvas.getContext('2d');
 
         const numAtoms = 100;
